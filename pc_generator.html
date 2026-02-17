@@ -1,0 +1,873 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>PC出品テンプレ生成（オフライン）</title>
+  <style>
+    :root{
+      --bg:#0b0f17; --panel:#111827; --panel2:#0f172a; --text:#e5e7eb; --muted:#9ca3af;
+      --border:#243244; --accent:#60a5fa; --ok:#34d399; --danger:#f87171; --radius:14px;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, "Hiragino Kaku Gothic ProN", "Meiryo", sans-serif;
+    }
+    body{ margin:0; background:linear-gradient(180deg,var(--bg),#05070c); color:var(--text); }
+    header{ padding:16px; border-bottom:1px solid var(--border); position:sticky; top:0; background:rgba(11,15,23,.85); backdrop-filter: blur(10px); }
+    h1{ margin:0; font-size:16px; }
+    .sub{ margin-top:6px; color:var(--muted); font-size:12px; line-height:1.5; }
+    main{ padding:16px; max-width:1200px; margin:0 auto; display:grid; grid-template-columns:1.1fr .9fr; gap:12px; }
+    @media (max-width: 980px){ main{ grid-template-columns:1fr; } }
+    .card{ background:linear-gradient(180deg,var(--panel),var(--panel2)); border:1px solid var(--border);
+      border-radius:var(--radius); padding:12px; box-shadow: 0 10px 30px rgba(0,0,0,.35);
+    }
+    h2{ margin:0 0 10px; font-size:13px; }
+    .row{ display:grid; grid-template-columns:140px 1fr; gap:10px; align-items:center; margin:10px 0; }
+    .row label{ color:var(--muted); font-size:12px; }
+    input,select,textarea{
+      width:100%; padding:10px; border-radius:10px; border:1px solid var(--border);
+      background:#0b1220; color:var(--text); outline:none;
+    }
+    textarea{ min-height:120px; resize:vertical; line-height:1.5; }
+    button{
+      border:1px solid var(--border); background:#0b1220; color:var(--text); padding:9px 12px;
+      border-radius:12px; cursor:pointer; transition:.15s;
+    }
+    button:hover{ border-color:var(--accent); }
+    .primary{ background:rgba(96,165,250,.14); border-color:rgba(96,165,250,.5); }
+    .ok{ background:rgba(52,211,153,.12); border-color:rgba(52,211,153,.55); }
+    .danger{ background:rgba(248,113,113,.12); border-color:rgba(248,113,113,.55); }
+    .btns{ display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; }
+    .split{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+    @media (max-width: 980px){ .split{ grid-template-columns:1fr; } }
+    .out{ white-space:pre-wrap; background:#070c16; border:1px dashed var(--border); padding:10px; border-radius:12px; min-height:90px; }
+    .mini{ font-size:11px; color:var(--muted); }
+    .divider{ height:1px; background:var(--border); margin:12px 0; }
+    .pill{ display:inline-block; padding:2px 8px; border:1px solid var(--border); border-radius:999px; font-size:11px; color:var(--muted); }
+    .checkgrid{ display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:6px; }
+    @media (max-width: 520px){ .checkgrid{ grid-template-columns:1fr; } }
+    .check{ display:flex; gap:8px; align-items:center; padding:8px; border:1px solid var(--border); border-radius:12px; background:#0b1220; }
+    .check input{ width:auto; }
+  </style>
+</head>
+
+<body>
+<header>
+  <h1>PC出品テンプレ生成（オフライン）</h1>
+  <div class="sub">
+    1ファイル完結。設定（テンプレ/選択肢）は端末内に保存（localStorage）。<br>
+    行削除：メーカー/型番/GPU/HDD は「なし・空」で行ごと削除。付属品は未選択なら「なし」表示。
+  </div>
+</header>
+
+<main>
+  <!-- Left: input + templates -->
+  <section class="card">
+    <h2>① スペック入力</h2>
+
+    <div class="row"><label>メーカー</label><input id="manufacturer" placeholder="例）Dell / Lenovo（空や「なし」なら行削除）"></div>
+    <div class="row"><label>型番</label><input id="model" placeholder="例）Latitude 7390（空や「なし」なら行削除）"></div>
+
+    <div class="row"><label>CPU</label><input id="cpu" placeholder="例）Core i7-8650U"></div>
+
+    <div class="row"><label>メモリ</label><select id="memory"></select></div>
+
+    <div class="split">
+      <div class="row" style="grid-template-columns:140px 1fr;"><label>SSD</label><select id="ssd"></select></div>
+      <div class="row" style="grid-template-columns:140px 1fr;"><label>HDD</label><select id="hdd"></select></div>
+    </div>
+
+    <div class="row"><label>外部GPU</label><input id="egpu" placeholder="例）GTX 1650（なければ なし / 空 → 行削除）"></div>
+
+    <div class="split">
+      <div class="row" style="grid-template-columns:140px 1fr;"><label>液晶サイズ</label><select id="displaySize"></select></div>
+      <div class="row" style="grid-template-columns:140px 1fr;"><label>解像度</label><select id="resolution"></select></div>
+    </div>
+
+    <div class="row"><label>OS</label><select id="os"></select></div>
+
+    <div class="divider"></div>
+
+    <h2>② 付属品（チェック選択）</h2>
+    <div id="accessoriesBox" class="checkgrid"></div>
+    <div class="mini" style="margin-top:8px;">未選択の場合、テンプレ内の「付属品：{{accessories}}
+
+【不良個所】
+{{defective}}」は「なし」と表示されます（行削除しません）。</div>
+
+    <div class="divider"></div>
+
+    <h2>③ 不良個所（チェック選択）</h2>
+    <div id="defectsBox" class="checkgrid"></div>
+    <div class="mini" style="margin-top:8px;">チェックした不良個所に対応する文章が <span class="pill">{{defective}}</span> に入ります（未選択なら「なし」）。</div>
+
+    <div class="divider"></div>
+    <h2>④ テンプレ（複数保存）</h2>
+    <div class="row">
+      <label>テンプレ選択</label>
+      <select id="tplSelect"></select>
+    </div>
+    <div class="row">
+      <label>テンプレ名</label>
+      <input id="tplName" placeholder="例）ヤフオク標準 / メルカリ簡易">
+    </div>
+    <div class="split">
+      <div>
+        <div class="mini">タイトルテンプレ</div>
+        <textarea id="tplTitle"></textarea>
+      </div>
+      <div>
+        <div class="mini">説明文テンプレ</div>
+        <textarea id="tplBody"></textarea>
+      </div>
+    </div>
+
+    <div class="btns">
+      <button class="primary" id="btnSaveTpl">テンプレ保存</button>
+      <button id="btnNewTpl">新規</button>
+      <button class="danger" id="btnDeleteTpl">削除</button>
+    </div>
+
+    <div class="mini" style="margin-top:10px; line-height:1.8;">
+      置換タグ：
+      <span class="pill">{{manufacturer}}</span>
+      <span class="pill">{{model}}</span>
+      <span class="pill">{{cpu}}</span>
+      <span class="pill">{{memory}}</span>
+      <span class="pill">{{ssd}}</span>
+      <span class="pill">{{hdd}}</span>
+      <span class="pill">{{egpu}}</span>
+      <span class="pill">{{displaySize}}</span>
+      <span class="pill">{{resolution}}</span>
+      <span class="pill">{{os}}</span>
+      <span class="pill">{{accessories}}</span>
+      <span class="pill">{{defective}}</span>
+      <span class="pill">{{storageSummary}}</span>
+    </div>
+
+    <div class="btns" style="margin-top:14px;">
+      <button class="ok" id="btnGenerate">生成</button>
+      <button id="btnCopyTitle">タイトルコピー</button>
+      <button id="btnCopyBody">説明コピー</button>
+      <button class="danger" id="btnReset">入力リセット</button>
+    </div>
+  </section>
+
+  <!-- Right: output + GUI editors for options -->
+  <aside class="card">
+    <h2>④ 出力</h2>
+    <div class="mini">生成タイトル</div>
+    <div id="outTitle" class="out"></div>
+    <div style="height:10px;"></div>
+    <div class="mini">生成説明文</div>
+    <div id="outBody" class="out"></div>
+
+    <div class="divider"></div>
+
+    <h2>⑤ スペック選択肢の編集（GUI）</h2>
+    <div class="row">
+      <label>カテゴリ</label>
+      <select id="optCategory">
+        <option value="memory">メモリ</option>
+        <option value="ssd">SSD</option>
+        <option value="hdd">HDD</option>
+        <option value="displaySize">液晶サイズ</option>
+        <option value="resolution">解像度</option>
+        <option value="os">OS</option>
+        <option value="accessories">付属品（チェック）</option>
+        <option value="defects">不良個所（チェック＋文章）</option>
+      </select>
+    </div>
+
+    <div id="optNormalRow" class="row" style="grid-template-columns:1fr auto;">
+      <input id="optValue" placeholder="追加したい選択肢（例：16GB / 512GB / Windows 11 / ACアダプタ）">
+      <button class="primary" id="btnAddOpt">追加</button>
+    </div>
+
+    <div class="row" style="grid-template-columns:1fr auto;">
+      <select id="optList"></select>
+      <button class="danger" id="btnDelOpt">削除</button>
+    </div>
+    <div id="defectEditor" style="display:none; margin-top:10px;">
+      <div class="row" style="grid-template-columns:1fr auto;">
+        <input id="defectName" placeholder="不良個所の名称（例：汚れあり / バッテリー劣化）">
+        <button class="primary" id="btnAddDefect">追加</button>
+      </div>
+      <div class="mini">不良個所の文章（チェック時に {{defective}} に入る）</div>
+      <textarea id="defectText" placeholder="例）バッテリーが劣化しており、駆動時間が短くなっています。"></textarea>
+      <div class="btns">
+        <button id="btnUpdateDefect">選択項目を更新</button>
+      </div>
+    </div>
+
+    <div class="mini" style="margin-top:8px; line-height:1.6;">
+      ※ メモリ/SSD/HDD/サイズ/解像度/OS は先頭に「なし」が固定で入ります（削除不可）。<br>
+      ※ 付属品は「なし」を使いません（未選択＝なし表示）。
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="btns">
+      <button id="btnExport">設定を書き出し（config.json）</button>
+      <label class="mini" style="display:flex; align-items:center; gap:10px;">
+        設定を読み込み
+        <input type="file" id="fileImport" accept="application/json">
+      </label>
+      <button class="danger" id="btnFactory">初期化</button>
+    </div>
+  </aside>
+</main>
+
+<script>
+
+(function(){
+'use strict';
+function deepCopy(o){ return JSON.parse(JSON.stringify(o)); }
+function dedup(arr){
+  var seen={}, out=[];
+  for(var i=0;i<arr.length;i++){
+    var v=String(arr[i]);
+    if(!seen[v]){ seen[v]=1; out.push(v); }
+  }
+  return out;
+}
+function trim(s){ return (s==null?"":String(s)).replace(/^\s+|\s+$/g,""); }
+function emptyish(v){
+  var s=trim(v);
+  if(s===""||s==="なし"||s==="-" ) return true;
+  return s.toLowerCase()==="none";
+}
+function $(id){ return document.getElementById(id); }
+function rid(){ return "tpl_"+Math.random().toString(16).slice(2)+"_"+Date.now().toString(16); }
+function toast(msg){
+  try{
+    var d=document.createElement("div");
+    d.textContent=msg;
+    d.style.position="fixed"; d.style.bottom="16px"; d.style.left="50%"; d.style.transform="translateX(-50%)";
+    d.style.background="rgba(0,0,0,.75)"; d.style.border="1px solid var(--border)";
+    d.style.padding="10px 12px"; d.style.borderRadius="12px"; d.style.zIndex="9999";
+    document.body.appendChild(d);
+    setTimeout(function(){ if(d&&d.parentNode) d.parentNode.removeChild(d); }, 1400);
+  }catch(e){}
+}
+async function copyText(text){
+  if(!text){ alert("コピーする内容がありません。"); return; }
+  try{ await navigator.clipboard.writeText(text); toast("コピーしました ✅"); }
+  catch(e){ alert("コピーできませんでした。ブラウザ権限をご確認ください。"); }
+}
+
+var LS_KEY="pc_listing_offline_config_v8";
+var DEFAULT={
+  version:8,
+  options:{
+    memory:["なし","8GB","16GB","32GB","64GB"],
+    ssd:["なし","256GB","512GB","1TB"],
+    hdd:["なし","1TB","2TB"],
+    displaySize:["なし","13.3インチ","14インチ","15.6インチ","17.3インチ"],
+    resolution:["なし","1920x1080","2560x1440","3840x2160(4K)"],
+    os:["なし","Windows 11","Windows 10","macOS","Ubuntu"],
+    accessories:["ACアダプタ","箱","説明書","マウス","Officeライセンス"],
+    defects:[
+      {name:"汚れあり", text:"外装に汚れがあります。"},
+      {name:"バッテリー劣化", text:"バッテリーが劣化している可能性があります。"},
+      {name:"キズあり", text:"外装にキズがあります。"}
+    ]
+  },
+  templates:[
+    { id:"tpl_yahoo_std", name:"ヤフオク標準（行削除対応）",
+      title:"{{manufacturer}} {{model}} / {{cpu}} / {{memory}} / {{storageSummary}} / {{displaySize}} {{resolution}} / {{os}}",
+      body:
+"ご覧いただきありがとうございます。PC出品です。\n\n【商品情報】\nメーカー：{{manufacturer}}\n型番：{{model}}\n\n【スペック】\nCPU：{{cpu}}\nメモリ：{{memory}}\nSSD：{{ssd}}\nHDD：{{hdd}}\nGPU：{{egpu}}\n液晶：{{displaySize}} / {{resolution}}\nOS：{{os}}\n\n【付属品】\n付属品：{{accessories}}\n\n【不良個所】\n{{defective}}\n\n【状態】\n・動作確認済み\n・中古品のため小傷や使用感はご了承ください。\n\n不明点はコメントください。"
+    }
+  ],
+  ui:{ selectedTemplateId:"tpl_yahoo_std", accessoriesSelected:[], defectsSelected:[] }
+};
+
+function normalize(obj){
+  var cfg=deepCopy(DEFAULT);
+  if(obj && typeof obj==="object"){
+    if(obj.options && typeof obj.options==="object"){
+      for(var k in obj.options){ cfg.options[k]=obj.options[k]; }
+    }
+    if(obj.templates && Object.prototype.toString.call(obj.templates)==="[object Array]" && obj.templates.length){
+      cfg.templates=[];
+      for(var i=0;i<obj.templates.length;i++){
+        var t=obj.templates[i]||{};
+        cfg.templates.push({ id:t.id?String(t.id):rid(), name:t.name?String(t.name):("テンプレ"+(i+1)),
+          title:t.title?String(t.title):"", body:t.body?String(t.body):"" });
+      }
+    }
+    if(obj.ui && typeof obj.ui==="object"){
+      for(var u in obj.ui){ cfg.ui[u]=obj.ui[u]; }
+    }
+  }
+
+  var dd=["memory","ssd","hdd","displaySize","resolution","os"];
+  for(var j=0;j<dd.length;j++){
+    var cat=dd[j];
+    var arr=cfg.options[cat];
+    if(!arr || Object.prototype.toString.call(arr)!=="[object Array]" || arr.length===0){
+      arr=deepCopy(DEFAULT.options[cat]);
+    }else{
+      var tmp=[];
+      for(var a=0;a<arr.length;a++) tmp.push(String(arr[a]));
+      arr=tmp;
+    }
+    if(arr.indexOf("なし")===-1) arr.unshift("なし");
+    cfg.options[cat]=dedup(arr);
+  }
+
+  // accessories
+  var acc=cfg.options.accessories;
+  if(!acc || Object.prototype.toString.call(acc)!=="[object Array]") acc=deepCopy(DEFAULT.options.accessories);
+  var acc2=[];
+  for(var b=0;b<acc.length;b++){
+    var v=trim(acc[b]);
+    if(v && v!=="なし") acc2.push(v);
+  }
+  cfg.options.accessories=dedup(acc2);
+
+  // defects
+  var defs=cfg.options.defects;
+  if(!defs || Object.prototype.toString.call(defs)!=="[object Array]") defs=deepCopy(DEFAULT.options.defects);
+  var defs2=[];
+  for(var d=0;d<defs.length;d++){
+    var it=defs[d];
+    if(it && typeof it==="object"){
+      var nm=trim(it.name), tx=trim(it.text);
+      if(nm) defs2.push({name:nm, text:tx});
+    }
+  }
+  cfg.options.defects=defs2;
+
+  if(!cfg.ui.accessoriesSelected || Object.prototype.toString.call(cfg.ui.accessoriesSelected)!=="[object Array]") cfg.ui.accessoriesSelected=[];
+  if(!cfg.ui.defectsSelected || Object.prototype.toString.call(cfg.ui.defectsSelected)!=="[object Array]") cfg.ui.defectsSelected=[];
+
+  // selected template exists
+  var sel=cfg.ui.selectedTemplateId, ok=false;
+  for(var ti=0;ti<cfg.templates.length;ti++){ if(cfg.templates[ti].id===sel){ ok=true; break; } }
+  if(!ok) cfg.ui.selectedTemplateId = cfg.templates[0]?cfg.templates[0].id:null;
+
+  return cfg;
+}
+
+function loadConfig(){
+  try{
+    var raw=localStorage.getItem(LS_KEY);
+    if(!raw) return deepCopy(DEFAULT);
+    return normalize(JSON.parse(raw));
+  }catch(e){
+    return deepCopy(DEFAULT);
+  }
+}
+function saveConfig(){ try{ localStorage.setItem(LS_KEY, JSON.stringify(CONFIG)); }catch(e){} }
+
+var CONFIG = loadConfig();
+
+/* ===== Rendering ===== */
+var TAG=/\{\{\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*\}\}/g;
+var REMOVABLE={manufacturer:1, model:1, egpu:1, hdd:1};
+
+function storageSummary(ssd,hdd){
+  var s = (ssd||"").trim();
+  var h = (hdd||"").trim();
+  var empty = function(v){
+    v = (v||"").trim();
+    return v==="" || v==="なし" || v==="-" || v.toLowerCase()==="none";
+  };
+  if(empty(s) && empty(h)){
+    return "ストレージ：なし";
+  }
+  var parts=[];
+  if(!empty(s)) parts.push("SSD："+s);
+  if(!empty(h)) parts.push("HDD："+h);
+  return parts.join(" / ");
+}
+function keysInLine(line){
+  var keys=[], m;
+  TAG.lastIndex=0;
+  while((m=TAG.exec(line))!==null) keys.push(m[1]);
+  return keys;
+}
+function renderWithLineRemoval(template, ctx){
+  var lines=String(template||"").split("\n"), out=[];
+  for(var i=0;i<lines.length;i++){
+    var line=lines[i];
+    var keys=keysInLine(line);
+    var remove=false;
+    for(var k=0;k<keys.length;k++){
+      var key=keys[k];
+      if(REMOVABLE[key] && emptyish(ctx[key])){ remove=true; break; }
+    }
+    if(remove) continue;
+    TAG.lastIndex=0;
+    line=line.replace(TAG,function(m,key){ return (key in ctx)?String(ctx[key]):m; });
+    out.push(line);
+  }
+  return out.join("\n").replace(/\n{3,}/g,"\n\n").replace(/^\s+|\s+$/g,"");
+}
+
+/* ===== UI fill ===== */
+function fillSelect(id, items){
+  var sel=$(id), prev=sel.value;
+  sel.innerHTML="";
+  for(var i=0;i<items.length;i++){
+    var o=document.createElement("option");
+    o.value=items[i]; o.textContent=items[i];
+    sel.appendChild(o);
+  }
+  for(var j=0;j<sel.options.length;j++){
+    if(sel.options[j].value===prev){ sel.value=prev; break; }
+  }
+}
+function getCheckedValues(containerId){
+  var box=$(containerId), inputs=box.querySelectorAll("input[type=checkbox]"), out=[];
+  for(var i=0;i<inputs.length;i++) if(inputs[i].checked) out.push(inputs[i].value);
+  return out;
+}
+function setCheckedValues(containerId, values){
+  var set={}, i;
+  for(i=0;i<values.length;i++) set[values[i]]=1;
+  var box=$(containerId), inputs=box.querySelectorAll("input[type=checkbox]");
+  for(i=0;i<inputs.length;i++) inputs[i].checked=!!set[inputs[i].value];
+}
+
+function renderAccessories(){
+  var box=$("accessoriesBox"); box.innerHTML="";
+  var items=CONFIG.options.accessories;
+  if(!items.length){
+    var d=document.createElement("div"); d.className="mini"; d.textContent="付属品の選択肢がありません。右側GUIで追加してください。";
+    box.appendChild(d); return;
+  }
+  for(var i=0;i<items.length;i++){
+    var name=items[i];
+    var lab=document.createElement("label"); lab.className="check";
+    var cb=document.createElement("input"); cb.type="checkbox"; cb.value=name;
+    cb.addEventListener("change", function(){
+      CONFIG.ui.accessoriesSelected=getCheckedValues("accessoriesBox"); saveConfig();
+    });
+    var span=document.createElement("span"); span.textContent=name;
+    lab.appendChild(cb); lab.appendChild(span); box.appendChild(lab);
+  }
+  setCheckedValues("accessoriesBox", CONFIG.ui.accessoriesSelected);
+}
+function renderDefects(){
+  var box=$("defectsBox"); box.innerHTML="";
+  var items=CONFIG.options.defects;
+  if(!items.length){
+    var d=document.createElement("div"); d.className="mini"; d.textContent="不良個所の選択肢がありません。右側GUIで追加してください。";
+    box.appendChild(d); return;
+  }
+  for(var i=0;i<items.length;i++){
+    var nm=items[i].name;
+    var lab=document.createElement("label"); lab.className="check";
+    var cb=document.createElement("input"); cb.type="checkbox"; cb.value=nm;
+    cb.addEventListener("change", function(){
+      CONFIG.ui.defectsSelected=getCheckedValues("defectsBox"); saveConfig();
+    });
+    var span=document.createElement("span"); span.textContent=nm;
+    lab.appendChild(cb); lab.appendChild(span); box.appendChild(lab);
+  }
+  setCheckedValues("defectsBox", CONFIG.ui.defectsSelected);
+}
+
+/* ===== Templates ===== */
+function refreshTemplates(){
+  var sel=$("tplSelect"); sel.innerHTML="";
+  for(var i=0;i<CONFIG.templates.length;i++){
+    var t=CONFIG.templates[i];
+    var o=document.createElement("option"); o.value=t.id; o.textContent=t.name;
+    sel.appendChild(o);
+  }
+  sel.value = CONFIG.ui.selectedTemplateId || (CONFIG.templates[0]?CONFIG.templates[0].id:"");
+  loadTemplateToEditor(sel.value);
+}
+function loadTemplateToEditor(id){
+  var t=null;
+  for(var i=0;i<CONFIG.templates.length;i++) if(CONFIG.templates[i].id===id){ t=CONFIG.templates[i]; break; }
+  if(!t) return;
+  $("tplName").value=t.name;
+  $("tplTitle").value=t.title;
+  $("tplBody").value=t.body;
+  CONFIG.ui.selectedTemplateId=t.id;
+  saveConfig();
+}
+function saveTemplate(){
+  var id=$("tplSelect").value;
+  var name=trim($("tplName").value);
+  if(!name){ alert("テンプレ名を入力してください。"); return; }
+  for(var i=0;i<CONFIG.templates.length;i++){
+    if(CONFIG.templates[i].id===id){
+      CONFIG.templates[i].name=name;
+      CONFIG.templates[i].title=$("tplTitle").value;
+      CONFIG.templates[i].body=$("tplBody").value;
+      break;
+    }
+  }
+  saveConfig(); refreshTemplates(); toast("テンプレ保存 ✅");
+}
+function newTemplate(){
+  var id=rid();
+  CONFIG.templates.push({
+    id:id,
+    name:"新規テンプレ",
+    title:"{{manufacturer}} {{model}} / {{cpu}} / {{memory}} / {{storageSummary}} / {{displaySize}} {{resolution}} / {{os}}",
+    body:"【商品情報】\nメーカー：{{manufacturer}}\n型番：{{model}}\n\n【スペック】\nCPU：{{cpu}}\nメモリ：{{memory}}\nSSD：{{ssd}}\nHDD：{{hdd}}\nGPU：{{egpu}}\n液晶：{{displaySize}} / {{resolution}}\nOS：{{os}}\n\n【付属品】\n付属品：{{accessories}}\n\n【不良個所】\n{{defective}}"
+  });
+  CONFIG.ui.selectedTemplateId=id; saveConfig(); refreshTemplates();
+}
+function deleteTemplate(){
+  if(CONFIG.templates.length<=1){ alert("最後のテンプレは削除できません。"); return; }
+  var id=$("tplSelect").value;
+  if(!confirm("このテンプレを削除しますか？")) return;
+  var next=[];
+  for(var i=0;i<CONFIG.templates.length;i++) if(CONFIG.templates[i].id!==id) next.push(CONFIG.templates[i]);
+  CONFIG.templates=next; CONFIG.ui.selectedTemplateId=CONFIG.templates[0].id;
+  saveConfig(); refreshTemplates();
+}
+
+/* ===== Options editor ===== */
+function showDefectEditor(on){
+  $("defectEditor").style.display = on ? "block" : "none";
+  $("optNormalRow").style.display = on ? "none" : "grid";
+}
+
+function refreshOptionEditor(){
+  var cat=$("optCategory").value;
+  showDefectEditor(cat==="defects");
+
+  var list=$("optList"); list.innerHTML="";
+  if(cat==="defects"){
+    for(var i=0;i<CONFIG.options.defects.length;i++){
+      var it=CONFIG.options.defects[i];
+      var o=document.createElement("option"); o.value=it.name; o.textContent=it.name;
+      list.appendChild(o);
+    }
+    if(list.options.length){
+      list.selectedIndex=0;
+      loadDefectIntoEditor(list.value);
+    }else{
+      $("defectName").value=""; $("defectText").value="";
+    }
+  }else{
+    var arr=CONFIG.options[cat] || [];
+    for(var j=0;j<arr.length;j++){
+      var o2=document.createElement("option"); o2.value=arr[j]; o2.textContent=arr[j];
+      list.appendChild(o2);
+    }
+  }
+}
+
+function refreshAllOptions(){
+  // dropdowns
+  fillSelect("memory", CONFIG.options.memory);
+  fillSelect("ssd", CONFIG.options.ssd);
+  fillSelect("hdd", CONFIG.options.hdd);
+  fillSelect("displaySize", CONFIG.options.displaySize);
+  fillSelect("resolution", CONFIG.options.resolution);
+  fillSelect("os", CONFIG.options.os);
+
+  // filter selected arrays when options removed
+  var accSet={}, i;
+  for(i=0;i<CONFIG.options.accessories.length;i++) accSet[CONFIG.options.accessories[i]]=1;
+  var accSel=[];
+  for(i=0;i<CONFIG.ui.accessoriesSelected.length;i++){
+    var v=CONFIG.ui.accessoriesSelected[i];
+    if(accSet[v]) accSel.push(v);
+  }
+  CONFIG.ui.accessoriesSelected=accSel;
+
+  var defSet={};
+  for(i=0;i<CONFIG.options.defects.length;i++) defSet[CONFIG.options.defects[i].name]=1;
+  var defSel=[];
+  for(i=0;i<CONFIG.ui.defectsSelected.length;i++){
+    var w=CONFIG.ui.defectsSelected[i];
+    if(defSet[w]) defSel.push(w);
+  }
+  CONFIG.ui.defectsSelected=defSel;
+
+  renderAccessories();
+  renderDefects();
+  refreshOptionEditor();
+  saveConfig();
+}
+
+function addNormalOption(){
+  var cat=$("optCategory").value;
+  var v=trim($("optValue").value);
+  if(!v) return;
+
+  if(cat==="accessories"){
+    if(v==="なし"){ alert("付属品には「なし」は不要です（未選択＝なし表示）。"); return; }
+    if(CONFIG.options.accessories.indexOf(v)===-1) CONFIG.options.accessories.push(v);
+  }else{
+    if(!CONFIG.options[cat] || Object.prototype.toString.call(CONFIG.options[cat])!=="[object Array]") CONFIG.options[cat]=["なし"];
+    if(CONFIG.options[cat].indexOf(v)===-1) CONFIG.options[cat].push(v);
+    if(CONFIG.options[cat].indexOf("なし")===-1) CONFIG.options[cat].unshift("なし");
+    CONFIG.options[cat]=dedup(CONFIG.options[cat]);
+  }
+
+  $("optValue").value="";
+  refreshAllOptions();
+  toast("追加しました ✅");
+}
+
+function deleteNormalOption(){
+  var cat=$("optCategory").value;
+  var v=$("optList").value;
+  if(!v) return;
+
+  if(cat!=="accessories" && v==="なし"){ alert("「なし」は削除できません。"); return; }
+
+  if(cat==="accessories"){
+    var next=[];
+    for(var i=0;i<CONFIG.options.accessories.length;i++) if(CONFIG.options.accessories[i]!==v) next.push(CONFIG.options.accessories[i]);
+    CONFIG.options.accessories=next;
+    // remove from selected
+    var sel=[];
+    for(i=0;i<CONFIG.ui.accessoriesSelected.length;i++) if(CONFIG.ui.accessoriesSelected[i]!==v) sel.push(CONFIG.ui.accessoriesSelected[i]);
+    CONFIG.ui.accessoriesSelected=sel;
+  }else{
+    var arr=CONFIG.options[cat]||[], out=[];
+    for(var j=0;j<arr.length;j++) if(arr[j]!==v) out.push(arr[j]);
+    if(out.indexOf("なし")===-1) out.unshift("なし");
+    CONFIG.options[cat]=out;
+  }
+
+  refreshAllOptions();
+  toast("削除しました ✅");
+}
+
+/* ===== Defects editor ===== */
+function loadDefectIntoEditor(name){
+  for(var i=0;i<CONFIG.options.defects.length;i++){
+    if(CONFIG.options.defects[i].name===name){
+      $("defectName").value=CONFIG.options.defects[i].name;
+      $("defectText").value=CONFIG.options.defects[i].text;
+      return;
+    }
+  }
+  $("defectName").value=name||"";
+  $("defectText").value="";
+}
+
+function addDefect(){
+  var name=trim($("defectName").value);
+  var text=trim($("defectText").value);
+  if(!name){ alert("不良個所の名称を入力してください。"); return; }
+
+  // if already exists, do not silently overwrite (use update button)
+  for(var i=0;i<CONFIG.options.defects.length;i++){
+    if(CONFIG.options.defects[i].name===name){
+      alert("同名の不良個所が既にあります。更新する場合は「選択項目を更新」を押してください。");
+      return;
+    }
+  }
+  CONFIG.options.defects.push({name:name, text:text});
+  $("defectName").value=""; $("defectText").value="";
+  refreshAllOptions();
+  toast("不良個所を追加 ✅");
+}
+
+function updateDefect(){
+  var selected=$("optList").value;
+  if(!selected){ alert("更新する不良個所をリストから選択してください。"); return; }
+  var name=trim($("defectName").value);
+  var text=trim($("defectText").value);
+  if(!name){ alert("名称が空です。"); return; }
+
+  // rename-safe: ensure no other has same name
+  for(var i=0;i<CONFIG.options.defects.length;i++){
+    if(CONFIG.options.defects[i].name===name && CONFIG.options.defects[i].name!==selected){
+      alert("同名の不良個所が既にあります。別名にしてください。");
+      return;
+    }
+  }
+
+  for(i=0;i<CONFIG.options.defects.length;i++){
+    if(CONFIG.options.defects[i].name===selected){
+      CONFIG.options.defects[i].name=name;
+      CONFIG.options.defects[i].text=text;
+      break;
+    }
+  }
+  // update selection array if renamed
+  var ds=[], changed=false;
+  for(i=0;i<CONFIG.ui.defectsSelected.length;i++){
+    var v=CONFIG.ui.defectsSelected[i];
+    if(v===selected){ ds.push(name); changed=true; }
+    else ds.push(v);
+  }
+  if(changed) CONFIG.ui.defectsSelected=dedup(ds);
+
+  refreshAllOptions();
+  // re-select updated item
+  $("optList").value=name;
+  loadDefectIntoEditor(name);
+  toast("更新しました ✅");
+}
+
+function deleteDefect(){
+  var selected=$("optList").value;
+  if(!selected) return;
+  if(!confirm("この不良個所を削除しますか？")) return;
+
+  var next=[];
+  for(var i=0;i<CONFIG.options.defects.length;i++) if(CONFIG.options.defects[i].name!==selected) next.push(CONFIG.options.defects[i]);
+  CONFIG.options.defects=next;
+
+  // remove from selected array
+  var ds=[];
+  for(i=0;i<CONFIG.ui.defectsSelected.length;i++) if(CONFIG.ui.defectsSelected[i]!==selected) ds.push(CONFIG.ui.defectsSelected[i]);
+  CONFIG.ui.defectsSelected=ds;
+
+  refreshAllOptions();
+  toast("削除しました ✅");
+}
+
+/* ===== Generate ===== */
+function computeAccessories(){
+  return CONFIG.ui.accessoriesSelected.length ? CONFIG.ui.accessoriesSelected.join(" / ") : "なし";
+}
+function computeDefective(){
+  var sel=CONFIG.ui.defectsSelected;
+  if(!sel.length) return "なし";
+  var map={}, i;
+  for(i=0;i<CONFIG.options.defects.length;i++) map[CONFIG.options.defects[i].name]=CONFIG.options.defects[i].text;
+  var parts=[];
+  for(i=0;i<sel.length;i++){
+    var nm=sel[i];
+    var tx=trim(map[nm]);
+    parts.push(tx?tx:nm);
+  }
+  return parts.join("\n");
+}
+
+function generate(){
+  var tplId=$("tplSelect").value, tpl=null;
+  for(var i=0;i<CONFIG.templates.length;i++) if(CONFIG.templates[i].id===tplId){ tpl=CONFIG.templates[i]; break; }
+  if(!tpl){ alert("テンプレを選択してください。"); return; }
+
+  var s={
+    manufacturer:trim($("manufacturer").value),
+    model:trim($("model").value),
+    cpu:trim($("cpu").value),
+    egpu:trim($("egpu").value),
+    memory:$("memory").value,
+    ssd:$("ssd").value,
+    hdd:$("hdd").value,
+    displaySize:$("displaySize").value,
+    resolution:$("resolution").value,
+    os:$("os").value
+  };
+  var ctx={
+    manufacturer:s.manufacturer||"なし",
+    model:s.model||"なし",
+    cpu:s.cpu||"なし",
+    memory:s.memory||"なし",
+    ssd:s.ssd||"なし",
+    hdd:s.hdd||"なし",
+    egpu:s.egpu||"なし",
+    displaySize:s.displaySize||"なし",
+    resolution:s.resolution||"なし",
+    os:s.os||"なし",
+    accessories:computeAccessories(),
+    defective:computeDefective(),
+    storageSummary:storageSummary(s.ssd,s.hdd)
+  };
+  $("outTitle").textContent=renderWithLineRemoval(tpl.title, ctx);
+  $("outBody").textContent=renderWithLineRemoval(tpl.body, ctx);
+  saveConfig();
+}
+
+function resetInputs(){
+  $("manufacturer").value=""; $("model").value=""; $("cpu").value=""; $("egpu").value="";
+  $("memory").selectedIndex=0; $("ssd").selectedIndex=0; $("hdd").selectedIndex=0;
+  $("displaySize").selectedIndex=0; $("resolution").selectedIndex=0; $("os").selectedIndex=0;
+  CONFIG.ui.accessoriesSelected=[]; CONFIG.ui.defectsSelected=[];
+  renderAccessories(); renderDefects();
+  $("outTitle").textContent=""; $("outBody").textContent="";
+  saveConfig();
+}
+
+/* ===== Export/Import/Factory ===== */
+function exportConfig(){
+  var blob=new Blob([JSON.stringify(CONFIG,null,2)],{type:"application/json"});
+  var a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);
+  a.download="config.json";
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+function importConfig(file){
+  var reader=new FileReader();
+  reader.onload=function(){
+    try{
+      CONFIG = normalize(JSON.parse(reader.result));
+      saveConfig();
+      boot();
+      alert("設定を読み込みました。");
+    }catch(e){
+      alert("読み込みに失敗しました（JSON形式を確認）。");
+    }
+  };
+  reader.readAsText(file);
+}
+function factoryReset(){
+  if(!confirm("設定を初期化しますか？（テンプレ/選択肢が戻ります）")) return;
+  CONFIG=deepCopy(DEFAULT);
+  saveConfig();
+  boot();
+}
+
+/* ===== Boot / bind ===== */
+function boot(){
+  CONFIG = normalize(CONFIG); // self-heal if defaults disappeared
+  saveConfig();
+  refreshAllOptions();
+  refreshTemplates();
+}
+function bind(){
+  $("btnGenerate").addEventListener("click", function(){ try{ generate(); }catch(e){ alert(String(e)); }});
+  $("btnCopyTitle").addEventListener("click", function(){ copyText($("outTitle").textContent); });
+  $("btnCopyBody").addEventListener("click", function(){ copyText($("outBody").textContent); });
+  $("btnReset").addEventListener("click", function(){ resetInputs(); });
+
+  $("tplSelect").addEventListener("change", function(){ loadTemplateToEditor(this.value); });
+  $("btnSaveTpl").addEventListener("click", function(){ saveTemplate(); });
+  $("btnNewTpl").addEventListener("click", function(){ newTemplate(); });
+  $("btnDeleteTpl").addEventListener("click", function(){ deleteTemplate(); });
+
+  $("optCategory").addEventListener("change", function(){ refreshOptionEditor(); });
+  $("btnAddOpt").addEventListener("click", function(){ try{ addNormalOption(); }catch(e){ alert(String(e)); }});
+  $("btnDelOpt").addEventListener("click", function(){
+    try{
+      if($("optCategory").value==="defects") deleteDefect();
+      else deleteNormalOption();
+    }catch(e){ alert(String(e)); }
+  });
+
+  $("optList").addEventListener("change", function(){
+    if($("optCategory").value==="defects") loadDefectIntoEditor(this.value);
+  });
+
+  $("btnAddDefect").addEventListener("click", function(){ try{ addDefect(); }catch(e){ alert(String(e)); }});
+  $("btnUpdateDefect").addEventListener("click", function(){ try{ updateDefect(); }catch(e){ alert(String(e)); }});
+
+  $("btnExport").addEventListener("click", function(){ exportConfig(); });
+  $("fileImport").addEventListener("change", function(e){
+    var f=e.target.files && e.target.files[0];
+    if(f) importConfig(f);
+    e.target.value="";
+  });
+  $("btnFactory").addEventListener("click", function(){ factoryReset(); });
+}
+
+document.addEventListener("DOMContentLoaded", function(){
+  bind();
+  boot();
+});
+})();
+
+</script>
+</body>
+</html>
+
